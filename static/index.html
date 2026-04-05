@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C002 — Adversarial Shield</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+         :root {
+            --bg: #020408;
+            --bg2: #060d14;
+            --bg3: #0a1520;
+            --cyan: #00f5ff;
+            --cyan2: #00bcd4;
+            --green: #00ff88;
+            --red: #ff3366;
+            --amber: #ffb300;
+            --text: #c8e6f0;
+            --text2: #5a8a9f;
+            --border: rgba(0, 245, 255, 0.15);
+            --border2: rgba(0, 245, 255, 0.35);
+            --glow: 0 0 20px rgba(0, 245, 255, 0.3);
+            --glow2: 0 0 40px rgba(0, 245, 255, 0.5);
+        }
+        
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            overflow-x: hidden;
+            cursor: none;
+        }
+        /* ── Custom cursor ── */
+        
+        #cursor {
+            width: 12px;
+            height: 12px;
+            border: 1.5px solid var(--cyan);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: width .15s, height .15s, background .15s;
+            mix-blend-mode: screen;
+        }
+        
+        #cursor.hover {
+            width: 28px;
+            height: 28px;
+            background: rgba(0, 245, 255, 0.1);
+        }
+        
+        #cursor-trail {
+            width: 4px;
+            height: 4px;
+            background: var(--cyan);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            opacity: 0.5;
+            transition: all .08s;
+        }
+        /* ── Grid background ── */
+        
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image: linear-gradient(rgba(0, 245, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 245, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+        /* ── Scan line ── */
+        
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            background: repeating-linear-gradient( 0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.08) 2px, rgba(0, 0, 0, 0.08) 4px);
+            pointer-events: none;
+        }
+        /* ── Particles canvas ── */
+        
+        #particles {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+        /* ── Layout ── */
+        
+        .wrapper {
+            position: relative;
+            z-index: 2;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        /* ── NAV ── */
+        
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            background: rgba(2, 4, 8, 0.85);
+            backdrop-filter: blur(12px);
+        }
+        
+        .nav-logo {
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            font-weight: 900;
+            color: var(--cyan);
+            text-shadow: var(--glow);
+            letter-spacing: 3px;
+        }
+        
+        .nav-logo span {
+            color: var(--text2);
+            font-weight: 400;
+        }
+        
+        .nav-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            color: var(--text2);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse-dot 2s infinite;
+        }
+        
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+        /* ── HERO ── */
+        
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 120px 24px 60px;
+            position: relative;
+        }
+        
+        .hero-tag {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            color: var(--cyan2);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: fadeUp .6s .2s forwards;
+        }
+        
+        .hero-title {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(32px, 6vw, 72px);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            opacity: 0;
+            animation: fadeUp .6s .4s forwards;
+        }
+        
+        .hero-title .line1 {
+            color: var(--text);
+            display: block;
+        }
+        
+        .hero-title .line2 {
+            color: var(--cyan);
+            text-shadow: var(--glow2);
+            display: block;
+        }
+        
+        .hero-sub {
+            font-size: 18px;
+            color: var(--text2);
+            max-width: 560px;
+            margin: 0 auto 40px;
+            opacity: 0;
+            animation: fadeUp .6s .6s forwards;
+        }
+        
+        .hero-stats {
+            display: flex;
+            gap: 32px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 48px;
+            opacity: 0;
+            animation: fadeUp .6s .8s forwards;
+        }
+        
+        .stat-chip {
+            background: rgba(0, 245, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 20px;
+            font-family: 'Share Tech Mono', monospace;
+        }
+        
+        .stat-chip .val {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--cyan);
+            display: block;
+            text-shadow: var(--glow);
+        }
+        
+        .stat-chip .lbl {
+            font-size: 11px;
+            color: var(--text2);
+            letter-spacing: 1px;
+        }
+        
+        .hero-cta {
+            opacity: 0;
+            animation: fadeUp .6s 1s forwards;
+        }
+        
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: transparent;
+            border: 1.5px solid var(--cyan);
+            color: var(--cyan);
+            font-family: 'Orbitron', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            padding: 14px 32px;
+            border-radius: 4px;
+            cursor: none;
+            transition: all .3s;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--cyan);
+            transform: translateX(-100%);
+            transition: transform .3s;
+            z-index: -1;
+        }
+        
+        .btn-primary:hover {
+            color: var(--bg);
+            text-shadow: none;
+            box-shadow: var(--glow2);
+        }
+        
+        .btn-primary:hover::before {
+            transform: translateX(0);
+        }
+        
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        /* ── SECTION ── */
+        
+        section {
+            padding: 80px 0;
+        }
+        
+        .section-header {
+            margin-bottom: 48px;
+        }
+        
+        .section-tag {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: var(--cyan2);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        
+        .section-title {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(22px, 4vw, 36px);
+            font-weight: 700;
+            color: var(--text);
+        }
+        
+        .section-title span {
+            color: var(--cyan);
+        }
+        /* ── UPLOAD AREA ── */
+        
+        .upload-zone {
+            border: 1.5px dashed var(--border2);
+            border-radius: 12px;
+            padding: 48px;
+            text-align: center;
+            cursor: none;
+            transition: all .3s;
+            background: rgba(0, 245, 255, 0.02);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(0, 245, 255, 0.05), transparent 70%);
+            opacity: 0;
+            transition: opacity .3s;
+        }
+        
+        .upload-zone:hover::before,
+        .upload-zone.dragover::before {
+            opacity: 1;
+        }
+        
+        .upload-zone.dragover {
+            border-color: var(--cyan);
+            box-shadow: var(--glow2), inset 0 0 40px rgba(0, 245, 255, 0.05);
+        }
+        
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            border: 1.5px solid var(--border2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--cyan2);
+            transition: all .3s;
+        }
+        
+        .upload-zone:hover .upload-icon {
+            border-color: var(--cyan);
+            box-shadow: var(--glow);
+            color: var(--cyan);
+        }
+        
+        .upload-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 16px;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        
+        .upload-sub {
+            font-size: 13px;
+            color: var(--text2);
+        }
+        
+        .upload-sub span {
+            color: var(--cyan);
+            cursor: none;
+        }
+        
+        #file-input {
+            display: none;
+        }
+        /* ── PREVIEW ── */
+        
+        .preview-section {
+            display: none;
+            margin-top: 24px;
+        }
+        
+        .preview-section.visible {
+            display: block;
+        }
+        
+        .preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .preview-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+        }
+        
+        .preview-card img {
+            width: 100%;
+            max-width: 180px;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            image-rendering: pixelated;
+        }
+        
+        .preview-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: var(--text2);
+            margin-top: 8px;
+            letter-spacing: 2px;
+        }
+        /* ── CONTROLS ── */
+        
+        .controls {
+            margin-top: 24px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .btn-action {
+            flex: 1;
+            min-width: 160px;
+            padding: 14px 20px;
+            border-radius: 6px;
+            font-family: 'Orbitron', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: none;
+            transition: all .3s;
+            border: 1.5px solid;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-analyze {
+            background: rgba(0, 245, 255, 0.08);
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+        
+        .btn-analyze:hover {
+            background: var(--cyan);
+            color: var(--bg);
+            box-shadow: var(--glow2);
+        }
+        
+        .btn-attack {
+            background: rgba(255, 51, 102, 0.08);
+            border-color: var(--red);
+            color: var(--red);
+        }
+        
+        .btn-attack:hover {
+            background: var(--red);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+        }
+        
+        .btn-reset {
+            background: rgba(90, 138, 159, 0.08);
+            border-color: var(--text2);
+            color: var(--text2);
+        }
+        
+        .btn-reset:hover {
+            border-color: var(--text);
+            color: var(--text);
+        }
+        /* ── RESULTS ── */
+        
+        .results-panel {
+            margin-top: 32px;
+            display: none;
+        }
+        
+        .results-panel.visible {
+            display: block;
+        }
+        
+        .result-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .result-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+        }
+        
+        .result-card.danger::before {
+            background: linear-gradient(90deg, transparent, var(--red), transparent);
+        }
+        
+        .result-card.success::before {
+            background: linear-gradient(90deg, transparent, var(--green), transparent);
+        }
+        
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .result-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            color: var(--text2);
+            letter-spacing: 2px;
+        }
+        
+        .result-badge {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            padding: 4px 12px;
+            border-radius: 3px;
+            letter-spacing: 1px;
+        }
+        
+        .badge-clean {
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--green);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+        
+        .badge-threat {
+            background: rgba(255, 51, 102, 0.1);
+            color: var(--red);
+            border: 1px solid rgba(255, 51, 102, 0.3);
+        }
+        
+        .badge-warning {
+            background: rgba(255, 179, 0, 0.1);
+            color: var(--amber);
+            border: 1px solid rgba(255, 179, 0, 0.3);
+        }
+        
+        .prediction-display {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .pred-class {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(24px, 5vw, 42px);
+            font-weight: 900;
+            color: var(--cyan);
+            text-shadow: var(--glow);
+        }
+        
+        .pred-conf {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 16px;
+            color: var(--text2);
+        }
+        /* ── PROBABILITY BARS ── */
+        
+        .prob-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .prob-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .prob-name {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: var(--text2);
+            min-width: 88px;
+            letter-spacing: 1px;
+        }
+        
+        .prob-track {
+            flex: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .prob-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--cyan2), var(--cyan));
+            width: 0;
+            transition: width 1s cubic-bezier(.4, 0, .2, 1);
+            box-shadow: 0 0 8px rgba(0, 245, 255, 0.4);
+        }
+        
+        .prob-fill.top {
+            background: linear-gradient(90deg, var(--cyan), #fff);
+        }
+        
+        .prob-val {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: var(--text2);
+            min-width: 40px;
+            text-align: right;
+        }
+        /* ── DETECTION STATUS ── */
+        
+        .detection-box {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+        
+        .detection-box.safe {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+        
+        .detection-box.threat {
+            background: rgba(255, 51, 102, 0.05);
+            border: 1px solid rgba(255, 51, 102, 0.2);
+            animation: threat-pulse 2s infinite;
+        }
+        
+        @keyframes threat-pulse {
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 51, 102, 0);
+            }
+            50% {
+                box-shadow: 0 0 0 6px rgba(255, 51, 102, 0.1);
+            }
+        }
+        
+        .detection-icon {
+            font-size: 24px;
+        }
+        
+        .detection-text {
+            flex: 1;
+        }
+        
+        .detection-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        
+        .detection-title.safe {
+            color: var(--green);
+        }
+        
+        .detection-title.threat {
+            color: var(--red);
+        }
+        
+        .detection-desc {
+            font-size: 12px;
+            color: var(--text2);
+        }
+        /* ── ATTACK COMPARE ── */
+        
+        .attack-compare {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            align-items: center;
+        }
+        
+        .compare-vs {
+            font-family: 'Orbitron', monospace;
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--red);
+            text-align: center;
+            text-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+        }
+        
+        .compare-side {
+            padding: 16px;
+            border-radius: 8px;
+        }
+        
+        .compare-side.original {
+            background: rgba(0, 245, 255, 0.03);
+            border: 1px solid var(--border);
+        }
+        
+        .compare-side.attacked {
+            background: rgba(255, 51, 102, 0.03);
+            border: 1px solid rgba(255, 51, 102, 0.2);
+        }
+        
+        .compare-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            color: var(--text2);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        
+        .compare-pred {
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .compare-pred.same {
+            color: var(--green);
+        }
+        
+        .compare-pred.changed {
+            color: var(--red);
+        }
+        
+        .compare-conf {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            color: var(--text2);
+        }
+        /* ── LOADING ── */
+        
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 4, 8, 0.92);
+            z-index: 200;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+        
+        .loading-overlay.visible {
+            display: flex;
+        }
+        
+        .loader-ring {
+            width: 80px;
+            height: 80px;
+            border: 2px solid rgba(0, 245, 255, 0.1);
+            border-top-color: var(--cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .loader-text {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            color: var(--cyan);
+            letter-spacing: 4px;
+        }
+        
+        .loader-sub {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: var(--text2);
+            letter-spacing: 2px;
+        }
+        /* ── TOAST ── */
+        
+        .toast {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 13px;
+            color: var(--text);
+            z-index: 300;
+            transform: translateX(120%);
+            transition: transform .4s cubic-bezier(.4, 0, .2, 1);
+            max-width: 320px;
+        }
+        
+        .toast.visible {
+            transform: translateX(0);
+        }
+        
+        .toast.error {
+            border-color: rgba(255, 51, 102, 0.5);
+            color: var(--red);
+        }
+        
+        .toast.success {
+            border-color: rgba(0, 255, 136, 0.5);
+            color: var(--green);
+        }
+        /* ── INFO CARDS ── */
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        
+        .info-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            transition: all .3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .info-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(0, 245, 255, 0.06), transparent 60%);
+            opacity: 0;
+            transition: opacity .3s;
+        }
+        
+        .info-card:hover::after {
+            opacity: 1;
+        }
+        
+        .info-card:hover {
+            border-color: var(--border2);
+            transform: translateY(-2px);
+        }
+        
+        .info-icon {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+        
+        .info-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        
+        .info-desc {
+            font-size: 13px;
+            color: var(--text2);
+            line-height: 1.5;
+        }
+        /* ── FOOTER ── */
+        
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 32px 0;
+            text-align: center;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            color: var(--text2);
+            letter-spacing: 2px;
+        }
+        
+        footer span {
+            color: var(--cyan);
+        }
+        /* ── DIVIDER ── */
+        
+        .cyber-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border2), transparent);
+            margin: 16px 0;
+        }
+        /* ── TERMINAL LINE ── */
+        
+        .terminal {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            color: var(--text2);
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 2px solid var(--cyan2);
+            border-radius: 0 6px 6px 0;
+            margin-top: 12px;
+        }
+        
+        .terminal .prompt {
+            color: var(--cyan);
+            margin-right: 8px;
+        }
+        
+        @media (max-width: 600px) {
+            .preview-grid {
+                grid-template-columns: 1fr;
+            }
+            .attack-compare {
+                grid-template-columns: 1fr;
+            }
+            .compare-vs {
+                display: none;
+            }
+            .hero-stats {
+                gap: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="cursor"></div>
+    <div id="cursor-trail"></div>
+    <canvas id="particles"></canvas>
+
+    <!-- NAV -->
+    <nav>
+        <div class="nav-logo">C002 <span>/ ADVERSARIAL SHIELD</span></div>
+        <div class="nav-status">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">CONNECTING...</span>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="wrapper">
+            <div class="hero-tag">C002 — Cybersecurity ML System</div>
+            <h1 class="hero-title">
+                <span class="line1">Adversarially</span>
+                <span class="line2">Robust AI</span>
+            </h1>
+            <p class="hero-sub">
+                An ML model engineered to withstand evasion and poisoning attacks — defending its integrity under adversarial conditions.
+            </p>
+            <div class="hero-stats">
+                <div class="stat-chip">
+                    <span class="val" id="stat-clean">91.2%</span>
+                    <span class="lbl">CLEAN ACC</span>
+                </div>
+                <div class="stat-chip">
+                    <span class="val" id="stat-fgsm">76.6%</span>
+                    <span class="lbl">FGSM ACC</span>
+                </div>
+                <div class="stat-chip">
+                    <span class="val" id="stat-pgd">73.3%</span>
+                    <span class="lbl">PGD-20 ACC</span>
+                </div>
+                <div class="stat-chip">
+                    <span class="val">3</span>
+                    <span class="lbl">DEFENSE LAYERS</span>
+                </div>
+            </div>
+            <div class="hero-cta">
+                <a href="#analyze" class="btn-primary">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> ANALYZE IMAGE
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section id="how">
+        <div class="wrapper">
+            <div class="section-header">
+                <div class="section-tag">// defense architecture</div>
+                <h2 class="section-title">How It <span>Defends</span></h2>
+            </div>
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-icon">🧹</div>
+                    <div class="info-title">Data Sanitization</div>
+                    <div class="info-desc">Z-score filtering and spectral signature analysis removes poisoned training samples before the model ever learns from them.</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-icon">⚔️</div>
+                    <div class="info-title">Adversarial Training</div>
+                    <div class="info-desc">PGD-3 attack examples are generated every batch. The model trains on 50% clean + 50% adversarial inputs, building robust decision boundaries.</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-icon">🔍</div>
+                    <div class="info-title">Input Detection</div>
+                    <div class="info-desc">Feature squeezing with 5 squeezers detects adversarial inputs at runtime by checking if predictions change after bit-depth reduction and smoothing.</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-icon">🛡️</div>
+                    <div class="info-title">Robust Architecture</div>
+                    <div class="info-desc">ResNet-style CNN with residual blocks, batch normalization and dropout trained for 60 epochs on CIFAR-10 with cosine annealing LR.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ANALYZE -->
+    <section id="analyze">
+        <div class="wrapper">
+            <div class="section-header">
+                <div class="section-tag">// image analysis</div>
+                <h2 class="section-title">Upload & <span>Analyze</span></h2>
+            </div>
+
+            <!-- Upload Zone -->
+            <div class="upload-zone" id="upload-zone">
+                <div class="upload-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                </div>
+                <div class="upload-title">Drop image here</div>
+                <div class="upload-sub">or <span id="browse-btn">browse files</span> — PNG, JPG, JPEG</div>
+                <input type="file" id="file-input" accept="image/*">
+                <div class="terminal" style="margin-top:20px;text-align:left;max-width:400px;margin-left:auto;margin-right:auto">
+                    <span class="prompt">></span> Best results: 32×32 or similar sized images. The model classifies: airplane, car, bird, cat, deer, dog, frog, horse, ship, truck.
+                </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="preview-section" id="preview-section">
+                <div class="preview-grid">
+                    <div class="preview-card">
+                        <img id="preview-img" src="" alt="Preview">
+                        <div class="preview-label">INPUT IMAGE</div>
+                    </div>
+                    <div class="preview-card" style="display:flex;flex-direction:column;justify-content:center">
+                        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2);letter-spacing:2px;margin-bottom:12px">IMAGE INFO</div>
+                        <div id="img-info" style="font-size:13px;color:var(--text2);line-height:2"></div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button class="btn-action btn-analyze" id="btn-analyze" onclick="analyzeImage()">
+          ⚡ ANALYZE
+        </button>
+                    <button class="btn-action btn-attack" id="btn-attack" onclick="simulateAttack()">
+          ☠ SIMULATE ATTACK
+        </button>
+                    <button class="btn-action btn-reset" onclick="resetAll()">
+          ↺ RESET
+        </button>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="results-panel" id="results-panel">
+
+                <!-- Prediction Result -->
+                <div class="result-card" id="result-main">
+                    <div class="result-header">
+                        <div class="result-title">CLASSIFICATION RESULT</div>
+                        <div class="result-badge" id="result-badge">—</div>
+                    </div>
+                    <div class="prediction-display">
+                        <div class="pred-class" id="pred-class">—</div>
+                        <div class="pred-conf" id="pred-conf">—</div>
+                    </div>
+                    <div class="cyber-divider"></div>
+                    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2);letter-spacing:2px;margin-bottom:12px">CONFIDENCE DISTRIBUTION</div>
+                    <div class="prob-list" id="prob-list"></div>
+                    <div class="detection-box" id="detection-box">
+                        <div class="detection-icon" id="detection-icon">🛡️</div>
+                        <div class="detection-text">
+                            <div class="detection-title" id="detection-title">—</div>
+                            <div class="detection-desc" id="detection-desc">—</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attack Comparison -->
+                <div class="result-card danger" id="attack-result" style="display:none">
+                    <div class="result-header">
+                        <div class="result-title">FGSM ATTACK SIMULATION</div>
+                        <div class="result-badge badge-warning" id="attack-badge">SIMULATED</div>
+                    </div>
+                    <div class="attack-compare">
+                        <div class="compare-side original">
+                            <div class="compare-label">ORIGINAL</div>
+                            <div class="compare-pred same" id="orig-pred">—</div>
+                            <div class="compare-conf" id="orig-conf">—</div>
+                        </div>
+                        <div class="compare-vs">VS</div>
+                        <div class="compare-side attacked">
+                            <div class="compare-label">AFTER ATTACK</div>
+                            <div class="compare-pred" id="adv-pred">—</div>
+                            <div class="compare-conf" id="adv-conf">—</div>
+                        </div>
+                    </div>
+                    <div class="cyber-divider"></div>
+                    <div class="detection-box" id="attack-detection-box">
+                        <div class="detection-icon" id="attack-icon">🔍</div>
+                        <div class="detection-text">
+                            <div class="detection-title" id="attack-detection-title">—</div>
+                            <div class="detection-desc" id="attack-detection-desc">—</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="wrapper">
+            <span>C002</span> — ADVERSARIALLY ROBUST AI SYSTEM &nbsp;|&nbsp; BUILT WITH PYTORCH + FLASK &nbsp;|&nbsp; CIFAR-10 TRAINED
+        </div>
+    </footer>
+
+    <!-- Loading -->
+    <div class="loading-overlay" id="loading">
+        <div class="loader-ring"></div>
+        <div class="loader-text" id="loader-text">ANALYZING</div>
+        <div class="loader-sub" id="loader-sub">RUNNING INFERENCE...</div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API = 'http://127.0.0.1:5000';
+        let currentFile = null;
+        let currentBase64 = null;
+
+        // ── Cursor ──────────────────────────────────────────────────────────────────
+        const cursor = document.getElementById('cursor');
+        const trail = document.getElementById('cursor-trail');
+        let tx = 0,
+            ty = 0,
+            cx = 0,
+            cy = 0;
+
+        document.addEventListener('mousemove', e => {
+            tx = e.clientX;
+            ty = e.clientY;
+            cursor.style.left = tx + 'px';
+            cursor.style.top = ty + 'px';
+        });
+
+        setInterval(() => {
+            cx += (tx - cx) * 0.15;
+            cy += (ty - cy) * 0.15;
+            trail.style.left = cx + 'px';
+            trail.style.top = cy + 'px';
+        }, 16);
+
+        document.querySelectorAll('button, a, [onclick], #browse-btn, .upload-zone').forEach(el => {
+            el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+            el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+        });
+
+        // ── Particles ───────────────────────────────────────────────────────────────
+        const canvas = document.getElementById('particles');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        for (let i = 0; i < 60; i++) {
+            particles.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                vx: (Math.random() - 0.5) * 0.3,
+                vy: (Math.random() - 0.5) * 0.3,
+                r: Math.random() * 1.5 + 0.5,
+                a: Math.random() * 0.4 + 0.1,
+            });
+        }
+
+        function animParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < 0) p.x = canvas.width;
+                if (p.x > canvas.width) p.x = 0;
+                if (p.y < 0) p.y = canvas.height;
+                if (p.y > canvas.height) p.y = 0;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(0, 245, 255, ${p.a})`;
+                ctx.fill();
+            });
+            requestAnimationFrame(animParticles);
+        }
+        animParticles();
+
+        // ── Info card glow ───────────────────────────────────────────────────────────
+        document.querySelectorAll('.info-card').forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const r = card.getBoundingClientRect();
+                card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+                card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+            });
+        });
+
+        // ── API Status ───────────────────────────────────────────────────────────────
+        async function checkStatus() {
+            try {
+                const res = await fetch(`${API}/api/status`);
+                const data = await res.json();
+                document.getElementById('status-dot').style.background = data.model_loaded ? 'var(--green)' : 'var(--amber)';
+                document.getElementById('status-text').textContent = data.model_loaded ? 'MODEL ONLINE' : 'MODEL NOT FOUND';
+                if (data.accuracy) {
+                    document.getElementById('stat-clean').textContent = data.accuracy.clean + '%';
+                    document.getElementById('stat-fgsm').textContent = data.accuracy.fgsm + '%';
+                    document.getElementById('stat-pgd').textContent = data.accuracy.pgd20 + '%';
+                }
+            } catch {
+                document.getElementById('status-dot').style.background = 'var(--red)';
+                document.getElementById('status-text').textContent = 'SERVER OFFLINE';
+            }
+        }
+        checkStatus();
+
+        // ── Upload ───────────────────────────────────────────────────────────────────
+        const zone = document.getElementById('upload-zone');
+        const fileInp = document.getElementById('file-input');
+
+        document.getElementById('browse-btn').addEventListener('click', () => fileInp.click());
+        zone.addEventListener('click', e => {
+            if (e.target.id !== 'browse-btn') fileInp.click();
+        });
+
+        zone.addEventListener('dragover', e => {
+            e.preventDefault();
+            zone.classList.add('dragover');
+        });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+        });
+
+        fileInp.addEventListener('change', e => {
+            if (e.target.files[0]) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showToast('Please upload an image file', 'error');
+                return;
+            }
+            currentFile = file;
+            const reader = new FileReader();
+            reader.onload = e => {
+                currentBase64 = e.target.result;
+                document.getElementById('preview-img').src = currentBase64;
+                document.getElementById('img-info').innerHTML =
+                    `<span style="color:var(--cyan)">Name:</span> ${file.name}<br>
+       <span style="color:var(--cyan)">Size:</span> ${(file.size/1024).toFixed(1)} KB<br>
+       <span style="color:var(--cyan)">Type:</span> ${file.type}<br>
+       <span style="color:var(--cyan)">Status:</span> <span style="color:var(--green)">Ready</span>`;
+                document.getElementById('preview-section').classList.add('visible');
+                document.getElementById('results-panel').classList.remove('visible');
+                document.getElementById('attack-result').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ── Analyze ──────────────────────────────────────────────────────────────────
+        async function analyzeImage() {
+            if (!currentBase64) {
+                showToast('Please upload an image first', 'error');
+                return;
+            }
+            showLoading('ANALYZING', 'RUNNING INFERENCE...');
+            try {
+                const res = await fetch(`${API}/api/predict`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: currentBase64
+                    }),
+                });
+                const data = await res.json();
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    hideLoading();
+                    return;
+                }
+                hideLoading();
+                showResults(data);
+                document.getElementById('attack-result').style.display = 'none';
+            } catch (e) {
+                hideLoading();
+                showToast('Server error — is Flask running?', 'error');
+            }
+        }
+
+        function showResults(data) {
+            const panel = document.getElementById('results-panel');
+            panel.classList.add('visible');
+
+            // Prediction
+            document.getElementById('pred-class').textContent = data.prediction.toUpperCase();
+            document.getElementById('pred-conf').textContent = `${data.confidence}% confidence`;
+
+            // Badge
+            const badge = document.getElementById('result-badge');
+            if (data.is_adversarial) {
+                badge.textContent = 'THREAT DETECTED';
+                badge.className = 'result-badge badge-threat';
+            } else {
+                badge.textContent = 'INPUT CLEAN';
+                badge.className = 'result-badge badge-clean';
+            }
+
+            // Probability bars
+            const list = document.getElementById('prob-list');
+            list.innerHTML = '';
+            const sorted = Object.entries(data.all_probs).sort((a, b) => b[1] - a[1]);
+            sorted.forEach(([cls, prob], i) => {
+                const isTop = i === 0;
+                list.innerHTML += `
+      <div class="prob-row">
+        <div class="prob-name">${cls.toUpperCase()}</div>
+        <div class="prob-track"><div class="prob-fill${isTop?' top':''}" data-w="${prob}" style="width:0%"></div></div>
+        <div class="prob-val">${prob}%</div>
+      </div>`;
+            });
+            setTimeout(() => {
+                document.querySelectorAll('.prob-fill').forEach(el => {
+                    el.style.width = el.dataset.w + '%';
+                });
+            }, 50);
+
+            // Detection
+            const dBox = document.getElementById('detection-box');
+            const dIcon = document.getElementById('detection-icon');
+            const dTitle = document.getElementById('detection-title');
+            const dDesc = document.getElementById('detection-desc');
+            if (data.is_adversarial) {
+                dBox.className = 'detection-box threat';
+                dIcon.textContent = '⚠️';
+                dTitle.className = 'detection-title threat';
+                dTitle.textContent = 'ADVERSARIAL INPUT DETECTED';
+                dDesc.textContent = 'Feature squeezing detected manipulation. This input may be crafted to fool the model.';
+            } else {
+                dBox.className = 'detection-box safe';
+                dIcon.textContent = '✅';
+                dTitle.className = 'detection-title safe';
+                dTitle.textContent = 'INPUT VERIFIED CLEAN';
+                dDesc.textContent = 'No adversarial perturbations detected. Prediction is reliable.';
+            }
+
+            panel.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest'
+            });
+        }
+
+        // ── Simulate Attack ───────────────────────────────────────────────────────────
+        async function simulateAttack() {
+            if (!currentBase64) {
+                showToast('Please upload an image first', 'error');
+                return;
+            }
+            showLoading('SIMULATING ATTACK', 'APPLYING FGSM PERTURBATION...');
+            try {
+                const res = await fetch(`${API}/api/simulate_attack`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: currentBase64
+                    }),
+                });
+                const data = await res.json();
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    hideLoading();
+                    return;
+                }
+                hideLoading();
+
+                // Show clean result first
+                showResults({...data.clean,
+                    all_probs: {
+                        [data.clean.prediction]: data.clean.confidence
+                    },
+                    is_adversarial: false
+                });
+
+                // Show attack comparison
+                const ar = document.getElementById('attack-result');
+                ar.style.display = 'block';
+
+                document.getElementById('orig-pred').textContent = data.clean.prediction.toUpperCase();
+                document.getElementById('orig-pred').className = 'compare-pred same';
+                document.getElementById('orig-conf').textContent = `${data.clean.confidence}% conf`;
+
+                const advPred = document.getElementById('adv-pred');
+                advPred.textContent = data.adversarial.prediction.toUpperCase();
+                advPred.className = data.attack_success ? 'compare-pred changed' : 'compare-pred same';
+                document.getElementById('adv-conf').textContent = `${data.adversarial.confidence}% conf`;
+
+                // Attack detection
+                const aBox = document.getElementById('attack-detection-box');
+                const aTitle = document.getElementById('attack-detection-title');
+                const aDesc = document.getElementById('attack-detection-desc');
+                const aIcon = document.getElementById('attack-icon');
+
+                if (data.adversarial.detected) {
+                    aBox.className = 'detection-box safe';
+                    aIcon.textContent = '🛡️';
+                    aTitle.className = 'detection-title safe';
+                    aTitle.textContent = 'ATTACK DETECTED & FLAGGED';
+                    aDesc.textContent = 'The adversarial detector successfully identified the FGSM perturbation.';
+                } else {
+                    aBox.className = 'detection-box threat';
+                    aIcon.textContent = '⚠️';
+                    aTitle.className = 'detection-title threat';
+                    aTitle.textContent = data.attack_success ? 'ATTACK EVADED DETECTION' : 'ATTACK FAILED — MODEL ROBUST';
+                    aDesc.textContent = data.attack_success ?
+                        'The model was fooled but remains active. Detection missed this perturbation.' :
+                        'The robust model correctly classified despite the adversarial attack!';
+                }
+
+                const badge = document.getElementById('attack-badge');
+                badge.textContent = data.attack_success ? 'PREDICTION CHANGED' : 'MODEL DEFENDED';
+                badge.className = data.attack_success ? 'result-badge badge-threat' : 'result-badge badge-clean';
+
+                showToast(data.attack_success ? '⚠ Prediction changed under attack' : '✓ Model defended against attack', data.attack_success ? 'error' : 'success');
+
+            } catch (e) {
+                hideLoading();
+                showToast('Server error — is Flask running?', 'error');
+            }
+        }
+
+        // ── Reset ────────────────────────────────────────────────────────────────────
+        function resetAll() {
+            currentFile = null;
+            currentBase64 = null;
+            document.getElementById('file-input').value = '';
+            document.getElementById('preview-section').classList.remove('visible');
+            document.getElementById('results-panel').classList.remove('visible');
+            document.getElementById('attack-result').style.display = 'none';
+        }
+
+        // ── Loading ──────────────────────────────────────────────────────────────────
+        function showLoading(title = 'PROCESSING', sub = 'PLEASE WAIT...') {
+            document.getElementById('loader-text').textContent = title;
+            document.getElementById('loader-sub').textContent = sub;
+            document.getElementById('loading').classList.add('visible');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('visible');
+        }
+
+        // ── Toast ────────────────────────────────────────────────────────────────────
+        let toastTimer;
+
+        function showToast(msg, type = '') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `toast ${type} visible`;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove('visible'), 3500);
+        }
+    </script>
+</body>
+
+</html>
