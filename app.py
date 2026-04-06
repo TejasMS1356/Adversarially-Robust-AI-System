@@ -1,7 +1,3 @@
-"""
-C002 - Adversarially Robust AI System
-Flask Backend Server - FIXED VERSION
-"""
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
